@@ -23,6 +23,13 @@ app.set('port', port);
 const server = http.createServer(app);
 
 /**
+ * Attach socket.io to the server.
+ */
+
+const ioOptions = { cors: { origin: process.env.CLIENT_URI } };
+io.attach(server, ioOptions);
+
+/**
  * Listen on provided port, on all network interfaces.
  */
 
