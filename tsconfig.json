@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"target": "ES2016",
+		"module": "CommonJS",
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"allowJs": true,
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"rootDir": "./",
+		"outDir": "./dist",
+		"sourceMap": true,
+		"baseUrl": "./"
+	},
+
+	"include": ["**/*.ts", "./**/*.ts"],
+	"exclude": ["node_modules"]
+}

@@ -4,10 +4,10 @@
  * Module dependencies.
  */
 
-const app = require('../app');
+import app from '../app';
 const debug = require('debug')('qr-file-share-api:server');
-const http = require('http');
-const { io } = require('../socketio/socketio');
+import { createServer } from 'http';
+import { io } from '../socketio/socketio';
 
 /**
  * Get port from environment and store in Express.
@@ -20,7 +20,7 @@ app.set('port', port);
  * Create HTTP server.
  */
 
-const server = http.createServer(app);
+const server = createServer(app);
 
 /**
  * Attach socket.io to the server.
@@ -41,7 +41,7 @@ server.on('listening', onListening);
  * Normalize a port into a number, string, or false.
  */
 
-function normalizePort(val) {
+function normalizePort(val: string) {
 	const port = parseInt(val, 10);
 
 	if (isNaN(port)) {
@@ -61,7 +61,7 @@ function normalizePort(val) {
  * Event listener for HTTP server "error" event.
  */
 
-function onError(error) {
+function onError(error: any) {
 	if (error.syscall !== 'listen') {
 		throw error;
 	}
@@ -89,6 +89,6 @@ function onError(error) {
 
 function onListening() {
 	const addr = server.address();
-	const bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
+	const bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr?.port;
 	debug('Listening on ' + bind);
 }
