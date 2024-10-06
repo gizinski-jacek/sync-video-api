@@ -45,9 +45,13 @@ rooms.on('connection', (socket: SocketType) => {
 			: [];
 		socket.emit('all_room_data', {
 			userData: { id: newUser.id, name: newUser.name },
-			userList: userListWithoutIP,
-			messageList: roomData.messageList,
-			videoList: roomData.videoList,
+			roomData: {
+				id: roomId as string,
+				createdAt: Date.now(),
+				userList: userListWithoutIP,
+				messageList: roomData.messageList,
+				videoList: roomData.videoList,
+			},
 		});
 	} else {
 		const userExists = roomExists.userList.find(
@@ -72,9 +76,13 @@ rooms.on('connection', (socket: SocketType) => {
 			});
 			socket.emit('all_room_data', {
 				userData: { id: newUser.id, name: newUser.name },
-				userList: userListWithoutIP,
-				messageList: roomExists.messageList,
-				videoList: roomExists.videoList,
+				roomData: {
+					id: roomId as string,
+					createdAt: Date.now(),
+					userList: userListWithoutIP,
+					messageList: roomExists.messageList,
+					videoList: roomExists.videoList,
+				},
 			});
 		} else {
 			socket.join(roomId);
@@ -89,9 +97,13 @@ rooms.on('connection', (socket: SocketType) => {
 			});
 			socket.emit('all_room_data', {
 				userData: { id: userExists.id, name: userExists.name },
-				userList: userListWithoutIP,
-				messageList: roomExists.messageList,
-				videoList: roomExists.videoList,
+				roomData: {
+					id: roomId as string,
+					createdAt: Date.now(),
+					userList: userListWithoutIP,
+					messageList: roomExists.messageList,
+					videoList: roomExists.videoList,
+				},
 			});
 		}
 	}
@@ -118,18 +130,21 @@ rooms.on('connection', (socket: SocketType) => {
 		const room = room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		const videoExists = room.videoList.find((video) => video.id === video.id);
-		if (videoExists) return;
+		if (videoExists) {
+			rooms.to(roomId).emit('error', 'Video already on the list');
+			return;
+		}
 		room.videoList.push(video);
 		rooms.to(roomId).emit('new_video_added', room.videoList);
 	});
 
-	socket.on('start_video_playback', ({ roomId }) => {
+	socket.on('start_video_playback', (roomId) => {
 		const room = room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		rooms.to(roomId).emit('start_video_playback', room.videoList);
 	});
 
-	socket.on('stop_video_playback', ({ roomId }) => {
+	socket.on('stop_video_playback', (roomId) => {
 		const room = room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		rooms.to(roomId).emit('stop_video_playback', room.videoList);
