@@ -8,10 +8,8 @@ export const io = new Server();
 const rooms = io.of('/rooms');
 
 rooms.on('connection', (socket: SocketType) => {
-	const { client_list } = global;
-	const { room_list } = global;
-	if (!client_list.find((client) => client.id === socket.id)) {
-		client_list.push({
+	if (!global.client_list.find((client) => client.id === socket.id)) {
+		global.client_list.push({
 			id: socket.id,
 			ip: socket.handshake.address,
 			name: namesGenCustom(),
@@ -19,7 +17,7 @@ rooms.on('connection', (socket: SocketType) => {
 	}
 	const roomId = socket.handshake.query.roomId;
 	if (!roomId) return;
-	const roomExists = room_list.find((room) => room.id === roomId);
+	const roomExists = global.room_list.find((room) => room.id === roomId);
 	if (!roomExists) {
 		const newUser: UserData = {
 			id: socket.id,
@@ -33,9 +31,9 @@ rooms.on('connection', (socket: SocketType) => {
 			messageList: [],
 			videoList: [],
 		};
-		room_list.push(newRoom);
+		global.room_list.push(newRoom);
 		socket.join(newRoom.id);
-		const roomData = room_list.find((room) => room.id === roomId);
+		const roomData = global.room_list.find((room) => room.id === roomId);
 		if (!roomData) return;
 		const userListWithoutIP: UserDataClient[] = roomData.userList.length
 			? roomData.userList.map((user) => ({
@@ -64,6 +62,9 @@ rooms.on('connection', (socket: SocketType) => {
 				name: namesGenCustom(),
 			};
 			roomExists.userList.push(newUser);
+			global.room_list.map((room) =>
+				room.id === roomExists.id ? roomExists : room
+			);
 			socket.join(roomId);
 			const userListWithoutIP = roomExists.userList.length
 				? roomExists.userList.map((user) => ({
@@ -110,7 +111,7 @@ rooms.on('connection', (socket: SocketType) => {
 
 	socket.on('send_message', (data) => {
 		const { roomId, message } = data;
-		const room = room_list.find((room) => room.id === roomId);
+		const room = global.room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		const user = room.userList.find(
 			(user) => user.ip === socket.handshake.address
@@ -127,7 +128,7 @@ rooms.on('connection', (socket: SocketType) => {
 	});
 
 	socket.on('add_video', ({ roomId, video }) => {
-		const room = room_list.find((room) => room.id === roomId);
+		const room = global.room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		const videoExists = room.videoList.find((video) => video.id === video.id);
 		if (videoExists) {
@@ -139,29 +140,29 @@ rooms.on('connection', (socket: SocketType) => {
 	});
 
 	socket.on('start_video_playback', (roomId) => {
-		const room = room_list.find((room) => room.id === roomId);
+		const room = global.room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		rooms.to(roomId).emit('start_video_playback', room.videoList);
 	});
 
 	socket.on('stop_video_playback', (roomId) => {
-		const room = room_list.find((room) => room.id === roomId);
+		const room = global.room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		rooms.to(roomId).emit('stop_video_playback', room.videoList);
 	});
 
 	socket.on('jump_to_video_time', ({ roomId, time }) => {
-		const room = room_list.find((room) => room.id === roomId);
+		const room = global.room_list.find((room) => room.id === roomId);
 		if (!room) return;
 		rooms.to(roomId).emit('jump_to_video_time', time);
 	});
 
 	socket.on('disconnect', () => {
-		const clientListupdated = client_list.filter(
+		const clientListupdated = global.client_list.filter(
 			(client) => client.id !== socket.id
 		);
 		global.client_list = clientListupdated;
-		const roomListupdated = room_list.map((room) => ({
+		const roomListupdated = global.room_list.map((room) => ({
 			...room,
 			userList: room.userList.filter((user) => user.id !== socket.id),
 		}));
