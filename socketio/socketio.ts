@@ -153,7 +153,7 @@ rooms.on('connection', (socket: SocketType) => {
 		const roomExists = global.room_list.find((room) => room.id === roomId);
 		if (!roomExists) return;
 		const newVideoList = roomExists.videoList.filter(
-			(vid) => vid.id === video.id
+			(vid) => vid.id !== video.id
 		);
 		global.room_list.map((room) =>
 			room.id === roomExists.id ? { ...room, videoList: newVideoList } : room
