@@ -111,9 +111,9 @@ rooms.on('connection', (socket: SocketType) => {
 
 	socket.on('send_message', (data) => {
 		const { roomId, message } = data;
-		const room = global.room_list.find((room) => room.id === roomId);
-		if (!room) return;
-		const user = room.userList.find(
+		const roomExists = global.room_list.find((room) => room.id === roomId);
+		if (!roomExists) return;
+		const user = roomExists.userList.find(
 			(user) => user.ip === socket.handshake.address
 		);
 		if (!user) return;
@@ -123,49 +123,83 @@ rooms.on('connection', (socket: SocketType) => {
 			message: message,
 			timestamp: Date.now(),
 		};
-		room.messageList.push(newMessage);
-		rooms.to(roomId).emit('new_message_received', newMessage);
+		roomExists.messageList.push(newMessage);
+		global.room_list.map((room) =>
+			room.id === roomExists.id
+				? { ...room, messageList: roomExists.messageList }
+				: room
+		);
+		rooms.to(roomId).emit('new_message_received', roomExists.messageList);
 	});
 
 	socket.on('add_video', ({ roomId, video }) => {
-		const room = global.room_list.find((room) => room.id === roomId);
-		if (!room) return;
-		const videoExists = room.videoList.find((video) => video.id === video.id);
+		const roomExists = global.room_list.find((room) => room.id === roomId);
+		if (!roomExists) return;
+		const videoExists = roomExists.videoList.find((vid) => vid.id === video.id);
 		if (videoExists) {
 			rooms.to(roomId).emit('error', 'Video already on the list');
 			return;
 		}
-		room.videoList.push(video);
-		rooms.to(roomId).emit('new_video_added', room.videoList);
+		roomExists.videoList.push(video);
+		global.room_list.map((room) =>
+			room.id === roomExists.id
+				? { ...room, videoList: roomExists.videoList }
+				: room
+		);
+		rooms.to(roomId).emit('new_video_added', roomExists.videoList);
+	});
+
+	socket.on('remove_video', ({ roomId, video }) => {
+		const roomExists = global.room_list.find((room) => room.id === roomId);
+		if (!roomExists) return;
+		const newVideoList = roomExists.videoList.filter(
+			(vid) => vid.id === video.id
+		);
+		global.room_list.map((room) =>
+			room.id === roomExists.id ? { ...room, videoList: newVideoList } : room
+		);
+		rooms.to(roomId).emit('new_video_added', newVideoList);
 	});
 
 	socket.on('start_video_playback', (roomId) => {
-		const room = global.room_list.find((room) => room.id === roomId);
-		if (!room) return;
-		rooms.to(roomId).emit('start_video_playback', room.videoList);
+		// const roomExists = global.room_list.find((room) => room.id === roomId);
+		// if (!roomExists) return;
+		// rooms.to(roomId).emit('start_video_playback', roomExists.videoList);
 	});
 
 	socket.on('stop_video_playback', (roomId) => {
-		const room = global.room_list.find((room) => room.id === roomId);
-		if (!room) return;
-		rooms.to(roomId).emit('stop_video_playback', room.videoList);
+		// const roomExists = global.room_list.find((room) => room.id === roomId);
+		// if (!roomExists) return;
+		// rooms.to(roomId).emit('stop_video_playback', roomExists.videoList);
 	});
 
-	socket.on('jump_to_video_time', ({ roomId, time }) => {
-		const room = global.room_list.find((room) => room.id === roomId);
-		if (!room) return;
-		rooms.to(roomId).emit('jump_to_video_time', time);
+	socket.on('video_seek', ({ roomId, time }) => {
+		// const roomExists = global.room_list.find((room) => room.id === roomId);
+		// if (!roomExists) return;
+		// rooms.to(roomId).emit('video_seek', time);
+	});
+
+	socket.on('change_video', ({ roomId, videoId }) => {
+		// const roomExists = global.room_list.find((room) => room.id === roomId);
+		// if (!roomExists) return;
+		// rooms.to(roomId).emit('change_video', videoId);
+	});
+
+	socket.on('video_ended', ({ roomId, videoId }) => {
+		// const roomExists = global.room_list.find((room) => room.id === roomId);
+		// if (!roomExists) return;
+		// rooms.to(roomId).emit('video_ended', videoId);
 	});
 
 	socket.on('disconnect', () => {
 		const clientListupdated = global.client_list.filter(
 			(client) => client.id !== socket.id
 		);
-		global.client_list = clientListupdated;
 		const roomListupdated = global.room_list.map((room) => ({
 			...room,
 			userList: room.userList.filter((user) => user.id !== socket.id),
 		}));
+		global.client_list = clientListupdated;
 		global.room_list = roomListupdated;
 	});
 });
