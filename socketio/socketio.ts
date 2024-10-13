@@ -109,8 +109,7 @@ rooms.on('connection', (socket: SocketType) => {
 		}
 	}
 
-	socket.on('send_message', (data) => {
-		const { roomId, message } = data;
+	socket.on('new_chat_message', ({ roomId, message }) => {
 		const roomExists = global.room_list.find((room) => room.id === roomId);
 		if (!roomExists) return;
 		const user = roomExists.userList.find(
@@ -129,10 +128,10 @@ rooms.on('connection', (socket: SocketType) => {
 				? { ...room, messageList: roomExists.messageList }
 				: room
 		);
-		rooms.to(roomId).emit('new_message_received', roomExists.messageList);
+		rooms.to(roomId).emit('new_chat_message', roomExists.messageList);
 	});
 
-	socket.on('add_video', ({ roomId, video }) => {
+	socket.on('new_video_added', ({ roomId, video }) => {
 		const roomExists = global.room_list.find((room) => room.id === roomId);
 		if (!roomExists) return;
 		const videoExists = roomExists.videoList.find((vid) => vid.id === video.id);
@@ -149,46 +148,54 @@ rooms.on('connection', (socket: SocketType) => {
 		rooms.to(roomId).emit('new_video_added', roomExists.videoList);
 	});
 
-	socket.on('remove_video', ({ roomId, video }) => {
+	socket.on('video_removed', ({ roomId, video }) => {
+		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
+		if (roomIndex < 0) return;
+		const newVideoList = global.room_list[roomIndex].videoList.filter((vid) =>
+			vid.id === video.id ? (vid.host === video.host ? false : true) : true
+		);
+		global.room_list[roomIndex].videoList = newVideoList;
+		rooms.to(roomId).emit('video_removed', newVideoList);
+	});
+
+	socket.on('start_video', (roomId) => {
 		const roomExists = global.room_list.find((room) => room.id === roomId);
 		if (!roomExists) return;
-		const newVideoList = roomExists.videoList.filter(
-			(vid) => vid.id !== video.id
-		);
-		global.room_list.map((room) =>
-			room.id === roomExists.id ? { ...room, videoList: newVideoList } : room
-		);
-		rooms.to(roomId).emit('new_video_added', newVideoList);
+		rooms.to(roomId).emit('start_video', roomExists.videoList);
 	});
 
-	socket.on('start_video_playback', (roomId) => {
-		// const roomExists = global.room_list.find((room) => room.id === roomId);
-		// if (!roomExists) return;
-		// rooms.to(roomId).emit('start_video_playback', roomExists.videoList);
-	});
-
-	socket.on('stop_video_playback', (roomId) => {
-		// const roomExists = global.room_list.find((room) => room.id === roomId);
-		// if (!roomExists) return;
-		// rooms.to(roomId).emit('stop_video_playback', roomExists.videoList);
+	socket.on('stop_video', (roomId) => {
+		const roomExists = global.room_list.find((room) => room.id === roomId);
+		if (!roomExists) return;
+		rooms.to(roomId).emit('stop_video', roomExists.videoList);
 	});
 
 	socket.on('video_seek', ({ roomId, time }) => {
-		// const roomExists = global.room_list.find((room) => room.id === roomId);
-		// if (!roomExists) return;
-		// rooms.to(roomId).emit('video_seek', time);
+		const roomExists = global.room_list.find((room) => room.id === roomId);
+		if (!roomExists) return;
+		rooms.to(roomId).emit('video_seek', time);
 	});
 
-	socket.on('change_video', ({ roomId, videoId }) => {
-		// const roomExists = global.room_list.find((room) => room.id === roomId);
-		// if (!roomExists) return;
-		// rooms.to(roomId).emit('change_video', videoId);
+	socket.on('change_video', ({ roomId, video }) => {
+		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
+		if (roomIndex < 0) return;
+		const videoIndex = global.room_list[roomIndex].videoList.findIndex(
+			(vid) => vid.id === video.id && vid.host === video.host
+		);
+		const newVideoList =
+			global.room_list[roomIndex].videoList.slice(videoIndex);
+		global.room_list[roomIndex].videoList = newVideoList;
+		rooms.to(roomId).emit('change_video', newVideoList);
 	});
 
-	socket.on('video_ended', ({ roomId, videoId }) => {
-		// const roomExists = global.room_list.find((room) => room.id === roomId);
-		// if (!roomExists) return;
-		// rooms.to(roomId).emit('video_ended', videoId);
+	socket.on('video_ended', ({ roomId, video }) => {
+		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
+		if (roomIndex < 0) return;
+		const newVideoList = global.room_list[roomIndex].videoList.filter((vid) =>
+			vid.id === video.id ? (vid.host === video.host ? false : true) : true
+		);
+		global.room_list[roomIndex].videoList = newVideoList;
+		rooms.to(roomId).emit('video_ended', newVideoList);
 	});
 
 	socket.on('disconnect', () => {
