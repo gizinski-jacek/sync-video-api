@@ -1,6 +1,9 @@
-import { RoomData, UserData } from './types';
+import { RoomData } from './types';
 
 export const global = {
-	client_list: [] as UserData[],
+	client_list: [] as {
+		id: string;
+		ip: string;
+	}[],
 	room_list: [] as RoomData[],
 };
