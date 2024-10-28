@@ -15,6 +15,9 @@ export const nanoidCustom = customAlphabet(
 export const namesGenCustom = () =>
 	uniqueNamesGenerator({
 		dictionaries: [adjectives, colors],
+		length: 2,
+		separator: '-',
+		style: 'capital',
 	});
 
 export const cleanupRooms = (
