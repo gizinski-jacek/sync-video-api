@@ -17,6 +17,7 @@ export interface MessageData {
 
 export interface RoomData {
 	ownerIP: string;
+	ownerId: string;
 	id: string;
 	createdAt: number;
 	userList: UserData[];
@@ -36,7 +37,6 @@ export interface RoomDataClient
 		RoomData,
 		'userList' | 'videoProgress' | 'ownerIP' | 'messageList'
 	> {
-	ownerId: string;
 	userList: UserDataClient[];
 	messageList: MessageDataClient[];
 }
