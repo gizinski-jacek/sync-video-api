@@ -49,7 +49,7 @@ export interface AllClientData {
 export type ServerToClientEvents = {
 	oops: (error: any) => void;
 	all_room_data: (data: AllClientData) => void;
-	user_leaving: (data: { userId: string }) => void;
+	user_leaving: (data: { userList: UserDataClient[] }) => void;
 	new_chat_message: (data: { messageList: MessageDataClient[] }) => void;
 	new_video_added: (data: { videoList: VideoData[] }) => void;
 	video_removed: (data: { videoList: VideoData[] }) => void;
