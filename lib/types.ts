@@ -16,8 +16,7 @@ export interface MessageData {
 }
 
 export interface RoomData {
-	ownerIP: string;
-	ownerId: string;
+	ownerData: UserData;
 	id: string;
 	createdAt: number;
 	userList: UserData[];
@@ -35,18 +34,21 @@ export interface MessageDataClient extends Omit<MessageData, 'user'> {
 export interface RoomDataClient
 	extends Omit<
 		RoomData,
-		'userList' | 'videoProgress' | 'ownerIP' | 'messageList'
+		'userList' | 'ownerData' | 'messageList' | 'videoProgress'
 	> {
+	ownerData: UserDataClient;
 	userList: UserDataClient[];
 	messageList: MessageDataClient[];
 }
 
+export interface AllClientData {
+	userData: UserDataClient;
+	roomData: RoomDataClient;
+}
+
 export type ServerToClientEvents = {
 	oops: (error: any) => void;
-	all_room_data: (data: {
-		userData: UserDataClient;
-		roomData: RoomDataClient;
-	}) => void;
+	all_room_data: (data: AllClientData) => void;
 	user_leaving: (data: { userId: string }) => void;
 	new_chat_message: (data: { messageList: MessageDataClient[] }) => void;
 	new_video_added: (data: { videoList: VideoData[] }) => void;
@@ -56,6 +58,7 @@ export type ServerToClientEvents = {
 	video_progress: (data: { videoProgress: number }) => void;
 	playback_rate_change: (data: { playbackRate: number }) => void;
 	change_video: (data: { videoList: VideoData[] }) => void;
+	reorder_video: (data: { videoList: VideoData[] }) => void;
 	video_ended: (data: { videoList: VideoData[] }) => void;
 	error: (message: string) => void;
 };
@@ -72,6 +75,11 @@ export type ClientToServerEvents = {
 		playbackRate: number;
 	}) => void;
 	change_video: (data: { roomId: string; video: VideoData }) => void;
+	reorder_video: (data: {
+		roomId: string;
+		video: VideoData;
+		targetIndex: number;
+	}) => void;
 	video_ended: (data: { roomId: string; video: VideoData }) => void;
 };
 
