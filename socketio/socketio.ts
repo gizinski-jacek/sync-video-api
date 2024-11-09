@@ -1,13 +1,17 @@
 import { Server } from 'socket.io';
 import { nanoid } from 'nanoid';
-import { namesGenCustom } from '../lib/utils';
+import {
+	namesGenCustom,
+	stripMessageIPData,
+	stripRoomIPData,
+	stripUserIPData,
+} from '../lib/utils';
 import {
 	AllClientData,
 	ClientToServerEvents,
 	MessageData,
 	MessageDataClient,
 	RoomData,
-	RoomDataClient,
 	ServerToClientEvents,
 	SocketType,
 	UserData,
@@ -42,20 +46,9 @@ rooms.on('connection', (socket: SocketType) => {
 		};
 		global.room_list.push(newRoom);
 		socket.join(newRoom.id);
-		const userWithoutIP: UserDataClient = {
-			id: newUser.id,
-			name: newUser.name,
-		};
 		const emitAllData: AllClientData = {
-			userData: userWithoutIP,
-			roomData: {
-				ownerData: userWithoutIP,
-				id: newRoom.id,
-				createdAt: newRoom.createdAt,
-				userList: [userWithoutIP],
-				messageList: newRoom.messageList,
-				videoList: newRoom.videoList,
-			},
+			userData: stripUserIPData(newUser),
+			roomData: stripRoomIPData(newRoom),
 		};
 		rooms.to(newRoom.id).emit('all_room_data', emitAllData);
 	} else {
@@ -65,39 +58,9 @@ rooms.on('connection', (socket: SocketType) => {
 		);
 		if (userExists) {
 			socket.join(roomData.id);
-			const userListWithoutIP: UserDataClient[] = roomData.userList.map(
-				(user) => ({
-					id: user.id,
-					name: user.name,
-				})
-			);
-			const userExistsWithoutIP: UserDataClient = {
-				id: userExists.id,
-				name: userExists.name,
-			};
-			const messageListWithoutIP: MessageDataClient[] =
-				roomData.messageList.map((message) => {
-					return {
-						id: message.id,
-						user: { id: message.user.id, name: message.user.name },
-						message: message.message,
-						timestamp: message.timestamp,
-					};
-				});
-			const roomDataWithoutIP: RoomDataClient = {
-				ownerData: {
-					id: roomData.ownerData.id,
-					name: roomData.ownerData.ip,
-				},
-				id: roomData.id,
-				createdAt: roomData.createdAt,
-				userList: userListWithoutIP,
-				messageList: messageListWithoutIP,
-				videoList: roomData.videoList,
-			};
 			const emitAllData: AllClientData = {
-				userData: userExistsWithoutIP,
-				roomData: roomDataWithoutIP,
+				userData: stripUserIPData(userExists),
+				roomData: stripRoomIPData(roomData),
 			};
 			rooms.to(roomData.id).emit('all_room_data', emitAllData);
 		} else {
@@ -136,37 +99,9 @@ rooms.on('connection', (socket: SocketType) => {
 			};
 			global.room_list[roomIndex] = updatedRoom;
 			socket.join(updatedRoom.id);
-			const userListWithoutIP: UserDataClient[] = updatedRoom.userList.map(
-				(user) => ({
-					id: user.id,
-					name: user.name,
-				})
-			);
-			const messageListWithoutIP: MessageDataClient[] =
-				updatedRoom.messageList.map((message) => ({
-					id: message.id,
-					user: { id: message.user.id, name: message.user.name },
-					message: message.message,
-					timestamp: message.timestamp,
-				}));
-			const updatedRoomWithoutIP: RoomDataClient = {
-				ownerData: {
-					id: updatedRoom.ownerData.id,
-					name: updatedRoom.ownerData.name,
-				},
-				id: updatedRoom.id,
-				createdAt: updatedRoom.createdAt,
-				userList: userListWithoutIP,
-				messageList: messageListWithoutIP,
-				videoList: updatedRoom.videoList,
-			};
-			const previousUserWithoutIP: UserDataClient = {
-				id: newUser.id,
-				name: newUser.name,
-			};
 			const emitAllData: AllClientData = {
-				userData: previousUserWithoutIP,
-				roomData: updatedRoomWithoutIP,
+				userData: stripUserIPData(newUser),
+				roomData: stripRoomIPData(updatedRoom),
 			};
 			rooms.to(roomData.id).emit('all_room_data', emitAllData);
 		}
@@ -192,14 +127,7 @@ rooms.on('connection', (socket: SocketType) => {
 		};
 		global.room_list[roomIndex] = updatedRoom;
 		const messageListWithoutIP: MessageDataClient[] =
-			updatedRoom.messageList.map((message) => {
-				return {
-					id: message.id,
-					user: { id: message.user.id, name: message.user.name },
-					message: message.message,
-					timestamp: message.timestamp,
-				};
-			});
+			updatedRoom.messageList.map((message) => stripMessageIPData(message));
 		rooms
 			.to(roomData.id)
 			.emit('new_chat_message', { messageList: messageListWithoutIP });
@@ -361,10 +289,7 @@ rooms.on('connection', (socket: SocketType) => {
 			);
 			if (!roomData) return;
 			const userListWithoutIP: UserDataClient[] = roomData.userList.map(
-				(user) => ({
-					id: user.id,
-					name: user.name,
-				})
+				(user) => stripUserIPData(user)
 			);
 			rooms.to(roomId).emit('user_leaving', { userList: userListWithoutIP });
 		});
