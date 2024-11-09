@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import { nanoid } from 'nanoid';
 import { namesGenCustom } from '../lib/utils';
 import {
+	AllClientData,
 	ClientToServerEvents,
 	MessageData,
 	MessageDataClient,
@@ -11,6 +12,7 @@ import {
 	SocketType,
 	UserData,
 	UserDataClient,
+	VideoData,
 } from 'lib/types';
 import { global } from '../lib/global';
 
@@ -18,15 +20,11 @@ export const io = new Server<ClientToServerEvents, ServerToClientEvents>();
 const rooms = io.of('/rooms');
 
 rooms.on('connection', (socket: SocketType) => {
-	if (!global.client_list.find((client) => client.id === socket.id)) {
-		global.client_list.push({
-			id: socket.id,
-			ip: socket.handshake.address,
-		});
-	}
-	const roomId = socket.handshake.query.roomId as string;
-	if (!roomId) return;
-	const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
+	const queryRoomId = socket.handshake.query.roomId as string;
+	if (!queryRoomId) return;
+	const roomIndex = global.room_list.findIndex(
+		(room) => room.id === queryRoomId
+	);
 	if (roomIndex < 0) {
 		const newUser: UserData = {
 			id: socket.id,
@@ -34,9 +32,8 @@ rooms.on('connection', (socket: SocketType) => {
 			name: namesGenCustom(),
 		};
 		const newRoom: RoomData = {
-			ownerIP: socket.handshake.address,
-			ownerId: newUser.id,
-			id: roomId as string,
+			ownerData: newUser,
+			id: queryRoomId as string,
 			createdAt: Date.now(),
 			userList: [newUser],
 			messageList: [],
@@ -49,64 +46,24 @@ rooms.on('connection', (socket: SocketType) => {
 			id: newUser.id,
 			name: newUser.name,
 		};
-		rooms.to(newRoom.id).emit('all_room_data', {
+		const emitAllData: AllClientData = {
 			userData: userWithoutIP,
 			roomData: {
-				ownerId: userWithoutIP.id,
+				ownerData: userWithoutIP,
 				id: newRoom.id,
 				createdAt: newRoom.createdAt,
 				userList: [userWithoutIP],
 				messageList: newRoom.messageList,
 				videoList: newRoom.videoList,
 			},
-		});
+		};
+		rooms.to(newRoom.id).emit('all_room_data', emitAllData);
 	} else {
-		const roomData = global.room_list[roomIndex];
-		const userExists = roomData.userList.find(
+		const roomData: RoomData = global.room_list[roomIndex];
+		const userExists: UserData | undefined = roomData.userList.find(
 			(user) => user.ip === socket.handshake.address
 		);
-		if (!userExists) {
-			const userHasExistingMessages = roomData.messageList.find(
-				(message) => message.user.ip === socket.handshake.address
-			);
-			const newUser: UserData = userHasExistingMessages
-				? { ...userHasExistingMessages.user }
-				: {
-						id: socket.id,
-						ip: socket.handshake.address,
-						name: namesGenCustom(),
-				  };
-			roomData.userList.push(newUser);
-			const updatedRoom: RoomData = {
-				...roomData,
-				userList: [...roomData.userList, newUser],
-			};
-			global.room_list[roomIndex] = updatedRoom;
-			socket.join(updatedRoom.id);
-			const userListWithoutIP: UserDataClient[] = updatedRoom.userList.map(
-				(user) => ({
-					id: user.id,
-					name: user.name,
-				})
-			);
-			const updatedRoomWithoutIP: RoomDataClient = {
-				ownerId:
-					updatedRoom.ownerIP === newUser.ip ? newUser.id : updatedRoom.id,
-				id: updatedRoom.id,
-				createdAt: updatedRoom.createdAt,
-				userList: userListWithoutIP,
-				messageList: updatedRoom.messageList,
-				videoList: updatedRoom.videoList,
-			};
-			const newUserWithoutIP: UserDataClient = {
-				id: newUser.id,
-				name: newUser.name,
-			};
-			rooms.to(roomData.id).emit('all_room_data', {
-				userData: newUserWithoutIP,
-				roomData: updatedRoomWithoutIP,
-			});
-		} else {
+		if (userExists) {
 			socket.join(roomData.id);
 			const userListWithoutIP: UserDataClient[] = roomData.userList.map(
 				(user) => ({
@@ -118,26 +75,108 @@ rooms.on('connection', (socket: SocketType) => {
 				id: userExists.id,
 				name: userExists.name,
 			};
+			const messageListWithoutIP: MessageDataClient[] =
+				roomData.messageList.map((message) => {
+					return {
+						id: message.id,
+						user: { id: message.user.id, name: message.user.name },
+						message: message.message,
+						timestamp: message.timestamp,
+					};
+				});
 			const roomDataWithoutIP: RoomDataClient = {
-				ownerId: roomData.ownerIP,
+				ownerData: {
+					id: roomData.ownerData.id,
+					name: roomData.ownerData.ip,
+				},
 				id: roomData.id,
 				createdAt: roomData.createdAt,
 				userList: userListWithoutIP,
-				messageList: roomData.messageList,
+				messageList: messageListWithoutIP,
 				videoList: roomData.videoList,
 			};
-			rooms.to(roomData.id).emit('all_room_data', {
+			const emitAllData: AllClientData = {
 				userData: userExistsWithoutIP,
 				roomData: roomDataWithoutIP,
-			});
+			};
+			rooms.to(roomData.id).emit('all_room_data', emitAllData);
+		} else {
+			const socketIPIsRoomOwner: boolean =
+				roomData.ownerData.ip === socket.handshake.address;
+			const socketIPHasExistingMessages: MessageData | undefined =
+				roomData.messageList.find(
+					(message) => message.user.ip === socket.handshake.address
+				);
+			const newUser: UserData = socketIPIsRoomOwner
+				? {
+						...roomData.ownerData,
+						id: socket.id,
+				  }
+				: socketIPHasExistingMessages
+				? {
+						...socketIPHasExistingMessages.user,
+						id: socket.id,
+				  }
+				: {
+						id: socket.id,
+						ip: socket.handshake.address,
+						name: namesGenCustom(),
+				  };
+			const filteredUserList = roomData.userList.filter(
+				(user) => user.ip !== newUser.ip
+			);
+			const updatedMessageList = roomData.messageList.map((msg) =>
+				msg.user.ip === newUser.ip ? { ...msg, user: newUser } : msg
+			);
+			const updatedRoom: RoomData = {
+				...roomData,
+				ownerData: socketIPIsRoomOwner ? newUser : roomData.ownerData,
+				userList: [...filteredUserList, newUser],
+				messageList: updatedMessageList,
+			};
+			global.room_list[roomIndex] = updatedRoom;
+			socket.join(updatedRoom.id);
+			const userListWithoutIP: UserDataClient[] = updatedRoom.userList.map(
+				(user) => ({
+					id: user.id,
+					name: user.name,
+				})
+			);
+			const messageListWithoutIP: MessageDataClient[] =
+				updatedRoom.messageList.map((message) => ({
+					id: message.id,
+					user: { id: message.user.id, name: message.user.name },
+					message: message.message,
+					timestamp: message.timestamp,
+				}));
+			const updatedRoomWithoutIP: RoomDataClient = {
+				ownerData: {
+					id: updatedRoom.ownerData.id,
+					name: updatedRoom.ownerData.name,
+				},
+				id: updatedRoom.id,
+				createdAt: updatedRoom.createdAt,
+				userList: userListWithoutIP,
+				messageList: messageListWithoutIP,
+				videoList: updatedRoom.videoList,
+			};
+			const previousUserWithoutIP: UserDataClient = {
+				id: newUser.id,
+				name: newUser.name,
+			};
+			const emitAllData: AllClientData = {
+				userData: previousUserWithoutIP,
+				roomData: updatedRoomWithoutIP,
+			};
+			rooms.to(roomData.id).emit('all_room_data', emitAllData);
 		}
 	}
 
 	socket.on('new_chat_message', ({ roomId, message }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		const roomData = global.room_list[roomIndex];
-		const user = roomData.userList.find(
+		const roomData: RoomData = global.room_list[roomIndex];
+		const user: UserData | undefined = roomData.userList.find(
 			(user) => user.ip === socket.handshake.address
 		);
 		if (!user) return;
@@ -156,7 +195,7 @@ rooms.on('connection', (socket: SocketType) => {
 			updatedRoom.messageList.map((message) => {
 				return {
 					id: message.id,
-					user: message.user,
+					user: { id: message.user.id, name: message.user.name },
 					message: message.message,
 					timestamp: message.timestamp,
 				};
@@ -169,15 +208,15 @@ rooms.on('connection', (socket: SocketType) => {
 	socket.on('new_video_added', ({ roomId, video }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		const roomData = global.room_list[roomIndex];
-		const videoExists = roomData.videoList.find(
+		const roomData: RoomData = global.room_list[roomIndex];
+		const videoExists: VideoData | undefined = roomData.videoList.find(
 			(vid) => vid.id === video.id && vid.host === video.host
 		);
 		if (videoExists) {
 			rooms.to(roomData.id).emit('error', 'Video already on the list');
 			return;
 		}
-		const newVideoList = [...roomData.videoList, video];
+		const newVideoList: VideoData[] = [...roomData.videoList, video];
 		const updatedRoom: RoomData = {
 			...roomData,
 			videoList: newVideoList,
@@ -192,8 +231,8 @@ rooms.on('connection', (socket: SocketType) => {
 	socket.on('video_removed', ({ roomId, video }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		const roomData = global.room_list[roomIndex];
-		const newVideoList = roomData.videoList.filter((vid) =>
+		const roomData: RoomData = global.room_list[roomIndex];
+		const newVideoList: VideoData[] = roomData.videoList.filter((vid) =>
 			vid.id === video.id ? (vid.host === video.host ? false : true) : true
 		);
 		const updatedRoom: RoomData = {
@@ -208,7 +247,9 @@ rooms.on('connection', (socket: SocketType) => {
 	});
 
 	socket.on('start_video', ({ roomId }) => {
-		const roomExists = global.room_list.find((room) => room.id === roomId);
+		const roomExists: RoomData | undefined = global.room_list.find(
+			(room) => room.id === roomId
+		);
 		if (!roomExists) return;
 		rooms
 			.to(roomExists.id)
@@ -216,7 +257,9 @@ rooms.on('connection', (socket: SocketType) => {
 	});
 
 	socket.on('stop_video', ({ roomId }) => {
-		const roomExists = global.room_list.find((room) => room.id === roomId);
+		const roomExists: RoomData | undefined = global.room_list.find(
+			(room) => room.id === roomId
+		);
 		if (!roomExists) return;
 		rooms.to(roomExists.id).emit('stop_video');
 	});
@@ -224,13 +267,16 @@ rooms.on('connection', (socket: SocketType) => {
 	socket.on('video_progress', ({ roomId, videoProgress }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		if (global.room_list[roomIndex].ownerIP !== socket.handshake.address)
+		if (global.room_list[roomIndex].ownerData.ip !== socket.handshake.address) {
 			return;
+		}
 		global.room_list[roomIndex].videoProgress = videoProgress;
 	});
 
 	socket.on('playback_rate_change', ({ roomId, playbackRate }) => {
-		const roomExists = global.room_list.find((room) => room.id === roomId);
+		const roomExists: RoomData | undefined = global.room_list.find(
+			(room) => room.id === roomId
+		);
 		if (!roomExists) return;
 		rooms.to(roomExists.id).emit('playback_rate_change', { playbackRate });
 	});
@@ -238,11 +284,12 @@ rooms.on('connection', (socket: SocketType) => {
 	socket.on('change_video', ({ roomId, video }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		const roomData = global.room_list[roomIndex];
+		const roomData: RoomData = global.room_list[roomIndex];
 		const videoIndex = roomData.videoList.findIndex(
 			(vid) => vid.id === video.id && vid.host === video.host
 		);
-		const newVideoList = roomData.videoList.slice(videoIndex);
+		if (videoIndex < 0) return;
+		const newVideoList: VideoData[] = roomData.videoList.slice(videoIndex);
 		const updatedRoom: RoomData = {
 			...roomData,
 			videoList: newVideoList,
@@ -254,11 +301,36 @@ rooms.on('connection', (socket: SocketType) => {
 			.emit('change_video', { videoList: updatedRoom.videoList });
 	});
 
+	socket.on('reorder_video', ({ roomId, video, targetIndex }) => {
+		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
+		if (roomIndex < 0) return;
+		const roomData: RoomData = global.room_list[roomIndex];
+		const filteredVideoList: VideoData[] = roomData.videoList.filter((vid) =>
+			vid.id === video.id ? (vid.host === video.host ? false : true) : true
+		);
+		if (targetIndex < 0) {
+			filteredVideoList.splice(filteredVideoList.length - 1, 0, video);
+		} else if (targetIndex >= filteredVideoList.length) {
+			filteredVideoList.splice(0, 0, video);
+		} else {
+			filteredVideoList.splice(targetIndex, 0, video);
+		}
+		const updatedRoom: RoomData = {
+			...roomData,
+			videoList: filteredVideoList,
+			videoProgress: 0,
+		};
+		global.room_list[roomIndex] = updatedRoom;
+		rooms
+			.to(roomData.id)
+			.emit('reorder_video', { videoList: updatedRoom.videoList });
+	});
+
 	socket.on('video_ended', ({ roomId, video }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		const roomData = global.room_list[roomIndex];
-		const newVideoList = roomData.videoList.filter((vid) =>
+		const roomData: RoomData = global.room_list[roomIndex];
+		const newVideoList: VideoData[] = roomData.videoList.filter((vid) =>
 			vid.id === video.id ? (vid.host === video.host ? false : true) : true
 		);
 		const updatedRoom: RoomData = {
@@ -272,19 +344,29 @@ rooms.on('connection', (socket: SocketType) => {
 			.emit('video_ended', { videoList: updatedRoom.videoList });
 	});
 
-	socket.on('disconnect', () => {
-		const clientListUpdated = global.client_list.filter(
-			(client) => client.id !== socket.id
+	socket.on('disconnecting', () => {
+		const socketJoinedRoomsId = Array.from(socket.rooms).slice(1);
+		const roomListUpdated: RoomData[] = global.room_list.map((room) =>
+			socketJoinedRoomsId.includes(room.id)
+				? {
+						...room,
+						userList: room.userList.filter((user) => user.id !== socket.id),
+				  }
+				: room
 		);
-		const roomListUpdated = global.room_list.map((room) => ({
-			...room,
-			userList: room.userList.filter((user) => user.id !== socket.id),
-		}));
-		global.client_list = clientListUpdated;
 		global.room_list = roomListUpdated;
-		const emitRoomList = roomListUpdated
-			.filter((room) => room.userList.find((user) => user.id === socket.id))
-			.map((room) => room.id);
-		rooms.to(emitRoomList).emit('user_leaving', { userId: socket.id });
+		socketJoinedRoomsId.forEach((roomId) => {
+			const roomData: RoomData | undefined = global.room_list.find(
+				(room) => room.id === roomId
+			);
+			if (!roomData) return;
+			const userListWithoutIP: UserDataClient[] = roomData.userList.map(
+				(user) => ({
+					id: user.id,
+					name: user.name,
+				})
+			);
+			rooms.to(roomId).emit('user_leaving', { userList: userListWithoutIP });
+		});
 	});
 });
