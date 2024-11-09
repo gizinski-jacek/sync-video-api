@@ -6,6 +6,14 @@ import {
 	colors,
 } from 'unique-names-generator';
 import { global } from './global';
+import {
+	MessageData,
+	MessageDataClient,
+	RoomData,
+	RoomDataClient,
+	UserData,
+	UserDataClient,
+} from './types';
 
 export const nanoidCustom = customAlphabet(
 	'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
@@ -43,4 +51,28 @@ export const cleanupRooms = (
 		global.room_list = roomListUpdated;
 		console.log(`Number of deleted rooms: ${roomIdToDelete.length}`);
 	}, interval * 1000);
+};
+
+export const stripUserIPData = (user: UserData): UserDataClient => {
+	return { id: user.id, name: user.name };
+};
+
+export const stripMessageIPData = (message: MessageData): MessageDataClient => {
+	return {
+		id: message.id,
+		user: stripUserIPData(message.user),
+		message: message.message,
+		timestamp: message.timestamp,
+	};
+};
+
+export const stripRoomIPData = (room: RoomData): RoomDataClient => {
+	return {
+		ownerData: stripUserIPData(room.ownerData),
+		id: room.id,
+		createdAt: room.createdAt,
+		userList: room.userList.map((user) => stripUserIPData(user)),
+		messageList: room.messageList.map((msg) => stripMessageIPData(msg)),
+		videoList: room.videoList,
+	};
 };
