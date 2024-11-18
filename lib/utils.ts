@@ -1,4 +1,3 @@
-import fs from 'fs';
 import { customAlphabet } from 'nanoid';
 import {
 	uniqueNamesGenerator,
@@ -43,14 +42,14 @@ export const cleanupRooms = (
 					room.userList.length === 0 && room.createdAt + lifespan < Date.now()
 			)
 			.map((room) => room.id);
-		if (roomIdToDelete.length <= 0) return;
+		if (!roomIdToDelete.length) return;
 		const roomListUpdated = room_list.filter(
 			(room) =>
 				!(room.userList.length === 0 && room.createdAt + lifespan < Date.now())
 		);
 		global.room_list = roomListUpdated;
 		console.log(`Number of deleted rooms: ${roomIdToDelete.length}`);
-	}, interval * 1000);
+	}, interval);
 };
 
 export const stripUserIPData = (user: UserData): UserDataClient => {
