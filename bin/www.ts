@@ -5,7 +5,7 @@
  */
 
 import app from '../app';
-const debug = require('debug')('qr-file-share-api:server');
+const debug = require('debug')('sync-video-api:server');
 import { createServer } from 'http';
 import { io } from '../socketio/socketio';
 
