@@ -1,11 +1,11 @@
 {
 	"name": "sync-video-api",
 	"version": "0.0.0",
-	"main": "dist/index.js",
+	"main": "bin/www",
 	"private": true,
 	"scripts": {
-		"start": "node --inspect=5858 -r ts-node/register ./bin/www.ts",
-		"dev": "nodemon ./bin/www.ts",
+		"start": "node ./dist/bin/www",
+		"dev": "nodemon bin/www.ts",
 		"build": "tsc"
 	},
 	"dependencies": {
