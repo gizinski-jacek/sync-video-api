@@ -14,6 +14,7 @@ import { io } from '../socketio/socketio';
  */
 
 const port = normalizePort(process.env.PORT || '4000');
+const host = process.env.HOST || undefined;
 app.set('port', port);
 
 /**
@@ -33,7 +34,7 @@ io.attach(server, ioOptions);
  * Listen on provided port, on all network interfaces.
  */
 
-server.listen(port);
+server.listen(Number(port), host);
 server.on('error', onError);
 server.on('listening', onListening);
 
