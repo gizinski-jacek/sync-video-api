@@ -24,6 +24,7 @@ const corsOptions = {
 	methods: ['GET'],
 	allowedHeaders: [
 		'Access-Control-Allow-Origin',
+		'Access-Control-Allow-Credentials',
 		'Origin',
 		'X-Requested-With',
 		'Content-Type',

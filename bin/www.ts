@@ -27,7 +27,14 @@ const server = createServer(app);
  * Attach socket.io to the server.
  */
 
-const ioOptions = { cors: { origin: process.env.CLIENT_URI } };
+const ioOptions = {
+	cors: {
+		origin: process.env.CLIENT_URI,
+		methods: ['GET', 'POST'],
+		credentials: true,
+	},
+};
+
 io.attach(server, ioOptions);
 
 /**
