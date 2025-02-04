@@ -64,9 +64,9 @@ CLIENT_URI
 
 - API endpoint for returning unique Id for creating new watch room or joining an existing one
 - Implements socket.io for quick and low latency communication letting users:
-  - Watch synchronized videos in real time
-  - Synchronize joining users
-  - Seek currently played video
+  - Synchronized videos in real time
+  - Synchronize new users to current video time
+  - Room owner can seek currently played video
   - Change video playback rate
   - Reorder videos on playlist
   - Remove videos from playlist
