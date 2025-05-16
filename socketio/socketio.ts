@@ -195,9 +195,9 @@ rooms.on('connection', (socket: SocketType) => {
 	socket.on('video_progress', ({ roomId, videoProgress }) => {
 		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
 		if (roomIndex < 0) return;
-		if (global.room_list[roomIndex].ownerData.ip !== socket.handshake.address) {
-			return;
-		}
+		const isRoomOwner =
+			global.room_list[roomIndex].ownerData.ip === socket.handshake.address;
+		if (!isRoomOwner) return;
 		global.room_list[roomIndex].videoProgress = videoProgress;
 	});
 
@@ -207,6 +207,22 @@ rooms.on('connection', (socket: SocketType) => {
 		);
 		if (!roomExists) return;
 		rooms.to(roomExists.id).emit('playback_rate_change', { playbackRate });
+	});
+
+	socket.on('clear_playlist', ({ roomId }) => {
+		const roomIndex = global.room_list.findIndex((room) => room.id === roomId);
+		if (roomIndex < 0) return;
+		const isRoomOwner =
+			global.room_list[roomIndex].ownerData.ip === socket.handshake.address;
+		if (!isRoomOwner) return;
+		const roomData: RoomData = global.room_list[roomIndex];
+		const updatedRoom: RoomData = {
+			...roomData,
+			videoList: [],
+			videoProgress: 0,
+		};
+		global.room_list[roomIndex] = updatedRoom;
+		rooms.to(roomData.id).emit('clear_playlist');
 	});
 
 	socket.on('change_video', ({ roomId, video }) => {
